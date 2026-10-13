@@ -2,7 +2,7 @@
 
 ## Results
 
-**223 browser tests pass** across Chromium 153.0.8010.12, Firefox 155.0, and
+**235 browser tests pass** across Chromium 153.0.8010.12, Firefox 155.0, and
 Playwright WebKit 26.6. Package checks also pass: imports, types, SSR, and tarball contents.
 CI runs these checks plus WPT in Chrome, Firefox, and actual Safari. Safari runs on
 `macos-26`; Playwright WebKit is a separate build.
@@ -12,12 +12,12 @@ in Chrome and Firefox:
 
 | Subtest result | Count |
 | --- | ---: |
-| PASS | 92 |
-| Expected FAIL | 52 |
+| PASS | 87 |
+| Expected FAIL | 57 |
 | Expected TIMEOUT | 26 |
 | Expected NOTRUN | 20 |
 
-Tested with Chrome Canary 157.0.8080.0 and Firefox Nightly 159.0a1 (20260930214513).
+Tested with Chrome Canary 155.0.8057.0 and Firefox Nightly 160.0a1 (20261013094244).
 Safari has not yet run at this pin; none of the expectations are browser-specific.
 At the file level: 43 OK, 26 expected timeouts, one expected error.
 
@@ -65,14 +65,20 @@ other non-testharness files are outside this suite.
 
 ## Draft alignment and limitations
 
-Checked against [draft `d61d0e6`](https://github.com/webmachinelearning/webmcp/blob/d61d0e6d297ddb6bff3510b1330dbb215c6ef43c/index.bs)
+Checked against [draft `eada13b`](https://github.com/webmachinelearning/webmcp/blob/eada13b575187ba9a523adc0c52e294ebdb6b597/index.bs)
 and `webmcp-types@0.1.9`.
 
-- **Missing APIs:** declarative forms, CSS states, and lifecycle events
-  (`toolactivated`/`toolcancel`, their handlers, and `ToolActivatedEvent`/`ToolCancelEvent`)
-  are not implemented.
+- **Missing APIs:** lifecycle events (`toolactivated`/`toolcancel`, their handlers, and
+  `ToolActivatedEvent`/`ToolCancelEvent`) are not implemented. Declarative forms and CSS
+  states are not implemented either; the draft removed them in `14ae813`, but pinned WPT
+  still tests them.
 - **Draft differences:** results are JSON-serialized; some pinned tests expect raw
   strings. Omitted or `undefined` input becomes `{}`; `null` and primitives reject.
+- **Execution errors:** failures reject with the draft's `NotFoundError`, `DataError`,
+  `OperationError`, `AbortError`, or `InvalidStateError`. Pinned WPT and Chromium still
+  expect `UnknownError` ([crbug.com/509555636](https://crbug.com/509555636)), so six
+  subtests are expected failures. Failures of the polyfill's own frame messages, such as a
+  malformed reply, have no draft counterpart and reject with `OperationError`.
 - **Timing:** MessagePorts approximate native task ordering. Aborting before
   dispatch skips the callback; the draft dispatches and then aborts its signal.
   Delegated permission checks are asynchronous, so argument errors can precede
@@ -82,7 +88,8 @@ and `webmcp-types@0.1.9`.
   Opaque-origin handshakes and inaccessible cross-origin shadow frames are
   unsupported; closed shadow trees limit discovery and ordering.
 - **Deadlines:** initial discovery, handshakes, and discovery or permission replies
-  wait up to 500 ms. Late peers can be absent from results. Callbacks and
+  wait up to 500 ms. Late peers can be absent from results, and executing a tool in a
+  frame that misses the handshake deadline rejects with `NotFoundError`. Callbacks and
   `toolchange` listeners have no deadline, so an unresponsive peer can leave a call
   pending. Navigation cleanup depends on `pagehide`; removed frames are polled
   every 100 ms. Background suspension affects timing.
